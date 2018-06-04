@@ -4,10 +4,10 @@ Rust Full Stack Example
 **Highly WIP**
 
 This repository is a proof of concept and a proposal for full stack applications using
-[Rust](). It's organized in three basic crates.
+[Rust](). It's organized in three basic crates (schema, client and server).
 
 This example is mainly REST oriented, but opinions on using other API designs are very
-welcome (in specially interested to try GraphQL using [Juniper]()).
+welcome (I'm specially interested to try GraphQL using [Juniper]()).
 
 Basic Architecture
 ==================
@@ -41,7 +41,7 @@ Server (Backend)
 ----------------
 
 Finally, the server application is resposible for serving the static frontend application
-and serving the API for the given example. It's implemented using [Rocket]() and a
+and serving the API for the given example. It's implemented using [Rocket]() and a simple
 [Redis]() list for simplicity.
 
 On the server, you may find view-controllers and repositories for the schema resources.
