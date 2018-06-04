@@ -10,15 +10,14 @@ pub extern crate schema;
 pub extern crate serde;
 pub extern crate serde_json;
 
-use std::{env, io};
 use std::ops::Deref;
+use std::{env, io};
 
 use r2d2::{Pool, PooledConnection};
 use r2d2_redis::RedisConnectionManager;
 use redis::{Commands, RedisResult};
-use rocket::{http, request, Outcome, Route, State, };
 use rocket::response::NamedFile;
-
+use rocket::{http, request, Outcome, Route, State};
 
 /// Redis connection pool.
 pub type RedisPool = Pool<RedisConnectionManager>;
@@ -50,8 +49,9 @@ impl Deref for RedisConnectionWrapper {
 impl<'a, 'r> request::FromRequest<'a, 'r> for RedisConnectionWrapper {
     type Error = ();
 
-    fn from_request(request: &'a request::Request<'r>)
-                    -> request::Outcome<RedisConnectionWrapper, ()> {
+    fn from_request(
+        request: &'a request::Request<'r>,
+    ) -> request::Outcome<RedisConnectionWrapper, ()> {
         let pool = request.guard::<State<RedisPool>>()?;
         match pool.get() {
             Ok(conn) => Outcome::Success(RedisConnectionWrapper(conn)),
@@ -61,7 +61,7 @@ impl<'a, 'r> request::FromRequest<'a, 'r> for RedisConnectionWrapper {
 }
 
 use rocket_contrib::Json;
-use schema::Todo;
+use schema::{Todo, TodoID};
 
 /// Serves the frontend App.
 #[get("/")]
@@ -75,25 +75,25 @@ pub fn statics(filename: String) -> io::Result<NamedFile> {
     NamedFile::open(format!("static/{}", filename).as_str())
 }
 
-
 /// List Todos.
 #[get("/")]
 pub fn list_todos(connection: RedisConnectionWrapper) -> Json<Vec<Todo>> {
     let result: RedisResult<Vec<String>> = connection.lrange("todos", 0, -1);
-    let deserialized =
-        result.unwrap()
-              .iter()
-              .map(|row| serde_json::from_str(row.as_str()).unwrap())
-              .collect();
+    let deserialized = result
+        .unwrap()
+        .iter()
+        .map(|row| serde_json::from_str(row.as_str()).unwrap())
+        .collect();
 
     Json(deserialized)
 }
 
 /// Creates a new Todo.
 #[post("/", data = "<new_todo>")]
-pub fn create_todo(connection: RedisConnectionWrapper,
-                   new_todo: Json<Todo>)
-                   -> Json<Todo> {
+pub fn create_todo(
+    connection: RedisConnectionWrapper,
+    new_todo: Json<Todo>,
+) -> Json<Todo> {
     let index: RedisResult<i32> =
         connection.rpush("todos", serde_json::to_string(&new_todo.0).unwrap());
 
@@ -104,14 +104,16 @@ pub fn create_todo(connection: RedisConnectionWrapper,
 
 /// Updates the Todo on the given position.
 #[put("/<index>", data = "<todo>")]
-pub fn update_todo(connection: RedisConnectionWrapper,
-                   index: isize,
-                   todo: Json<Todo>)
-                   -> Json<Todo> {
-    let result: RedisResult<String> =
-        connection.lset("todos",
-                        index,
-                        serde_json::to_string(&todo.0).unwrap());
+pub fn update_todo(
+    connection: RedisConnectionWrapper,
+    index: TodoID,
+    todo: Json<Todo>,
+) -> Json<Todo> {
+    let result: RedisResult<String> = connection.lset(
+        "todos",
+        index as isize,
+        serde_json::to_string(&todo.0).unwrap(),
+    );
 
     // FIXME: Handle Error
     result.unwrap();
@@ -120,10 +122,11 @@ pub fn update_todo(connection: RedisConnectionWrapper,
 
 /// Deletes the Todo on the given position.
 #[delete("/<index>")]
-pub fn delete_todo(connection: RedisConnectionWrapper,
-                   index: isize)
-                   -> Json<Todo> {
-    let value: RedisResult<String> = connection.lindex("todos", index);
+pub fn delete_todo(
+    connection: RedisConnectionWrapper,
+    index: TodoID,
+) -> Json<Todo> {
+    let value: RedisResult<String> = connection.lindex("todos", index as isize);
 
     let data = value.unwrap();
 
@@ -141,7 +144,10 @@ pub fn todo_routes() -> Vec<Route> {
 
 fn main() {
     let db_pool = init_pool();
-    let server = rocket::ignite().mount("/todos", todo_routes()).mount("/", routes![index, statics]).manage(db_pool);
+    let server = rocket::ignite()
+        .mount("/todos", todo_routes())
+        .mount("/", routes![index, statics])
+        .manage(db_pool);
 
     server.launch();
 }

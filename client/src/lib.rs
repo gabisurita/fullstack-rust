@@ -12,7 +12,7 @@ extern crate yew;
 extern crate schema;
 
 use failure::Error;
-use schema::Todo;
+use schema::{Todo, TodoID};
 use strum::IntoEnumIterator;
 use yew::callback::Callback;
 use yew::format::{Json, Nothing};
@@ -67,7 +67,7 @@ impl TodoAPI {
         self.fetch.fetch(request, handler.into());
     }
 
-    pub fn update<'a>(&mut self, id: usize, todo: &'a Todo) {
+    pub fn update<'a>(&mut self, id: TodoID, todo: &'a Todo) {
         let url = format!("{}/{}", TodoAPI::URL, id);
         let request = Request::put(url.as_str())
             .header("Content-Type", "application/json")
@@ -81,7 +81,7 @@ impl TodoAPI {
         self.fetch.fetch(request, handler.into());
     }
 
-    pub fn delete<'a>(&mut self, id: usize) {
+    pub fn delete<'a>(&mut self, id: TodoID) {
         let url = format!("{}/{}", TodoAPI::URL, id);
         let request = Request::delete(url.as_str()).body(Nothing).unwrap();
 
@@ -122,13 +122,13 @@ struct Entry {
 pub enum Msg {
     Load(Vec<Todo>),
     Add,
-    Edit(usize),
+    Edit(TodoID),
     Update(String),
     UpdateEdit(String),
-    Remove(usize),
+    Remove(TodoID),
     SetFilter(Filter),
-    ToggleEdit(usize),
-    Toggle(usize),
+    ToggleEdit(TodoID),
+    Toggle(TodoID),
     Nope,
 }
 
@@ -177,10 +177,10 @@ impl Component<Context> for Model {
                 self.entries.push(entry);
                 self.value = "".to_string();
             }
-            Msg::Edit(idx) => {
+            Msg::Edit(id) => {
                 let edit_value = self.edit_value.clone();
-                self.complete_edit(idx, edit_value);
-                env.todos.update(idx, &self.entries[idx].data);
+                self.complete_edit(id, edit_value);
+                env.todos.update(id, &self.entries[id].data);
                 self.edit_value = "".to_string();
             }
             Msg::Update(val) => {
@@ -191,20 +191,20 @@ impl Component<Context> for Model {
                 println!("Input: {}", val);
                 self.edit_value = val;
             }
-            Msg::Remove(idx) => {
-                self.remove(idx);
-                env.todos.delete(idx);
+            Msg::Remove(id) => {
+                self.remove(id);
+                env.todos.delete(id);
             }
             Msg::SetFilter(filter) => {
                 self.filter = filter;
             }
-            Msg::ToggleEdit(idx) => {
-                self.edit_value = self.entries[idx].data.description.clone();
-                self.toggle_edit(idx);
+            Msg::ToggleEdit(id) => {
+                self.edit_value = self.entries[id].data.description.clone();
+                self.toggle_edit(id);
             }
-            Msg::Toggle(idx) => {
-                self.toggle(idx);
-                env.todos.update(idx, &self.entries[idx].data);
+            Msg::Toggle(id) => {
+                self.toggle(id);
+                env.todos.update(id, &self.entries[id].data);
             }
             Msg::Nope => {}
         }
@@ -282,26 +282,26 @@ impl Model {
     }
 }
 
-fn view_entry((idx, entry): (usize, &Entry)) -> Html<Context, Model> {
+fn view_entry((id, entry): (TodoID, &Entry)) -> Html<Context, Model> {
     html! {
         <li class=if entry.editing == true { "editing" } else { "" },>
             <div class="view",>
                 <input class="toggle",
                        type="checkbox",
                        checked=entry.data.completed,
-                       onclick=|_| Msg::Toggle(idx), />
-                <label ondoubleclick=|_| Msg::ToggleEdit(idx),>
+                       onclick=|_| Msg::Toggle(id), />
+                <label ondoubleclick=|_| Msg::ToggleEdit(id),>
                     { &entry.data.description }
                 </label>
-                <button class="destroy", onclick=|_| Msg::Remove(idx), />
+                <button class="destroy", onclick=|_| Msg::Remove(id), />
             </div>
-            { view_entry_edit_input((idx, &entry)) }
+            { view_entry_edit_input((id, &entry)) }
         </li>
     }
 }
 
 fn view_entry_edit_input(
-    (idx, entry): (usize, &Entry),
+    (id, entry): (TodoID, &Entry),
 ) -> Html<Context, Model> {
     if entry.editing == true {
         html! {
@@ -309,9 +309,9 @@ fn view_entry_edit_input(
                    type="text",
                    value=&entry.data.description,
                    oninput=|e| Msg::UpdateEdit(e.value),
-                   onblur=|_| Msg::Edit(idx),
+                   onblur=|_| Msg::Edit(id),
                    onkeypress=|e| {
-                      if e.key() == "Enter" { Msg::Edit(idx) } else { Msg::Nope }
+                      if e.key() == "Enter" { Msg::Edit(id) } else { Msg::Nope }
                    }, />
         }
     } else {
@@ -347,46 +347,46 @@ impl Filter {
 }
 
 impl Model {
-    fn total(&self) -> usize {
+    fn total(&self) -> TodoID {
         self.entries.len()
     }
 
-    fn toggle(&mut self, idx: usize) {
+    fn toggle(&mut self, id: TodoID) {
         let filter = self.filter.clone();
         let mut entries = self
             .entries
             .iter_mut()
             .filter(|e| filter.fit(e))
             .collect::<Vec<_>>();
-        let entry = entries.get_mut(idx).unwrap();
+        let entry = entries.get_mut(id).unwrap();
         entry.data.completed = !entry.data.completed;
     }
 
-    fn toggle_edit(&mut self, idx: usize) {
+    fn toggle_edit(&mut self, id: TodoID) {
         let filter = self.filter.clone();
         let mut entries = self
             .entries
             .iter_mut()
             .filter(|e| filter.fit(e))
             .collect::<Vec<_>>();
-        let entry = entries.get_mut(idx).unwrap();
+        let entry = entries.get_mut(id).unwrap();
         entry.editing = !entry.editing;
     }
 
-    fn complete_edit(&mut self, idx: usize, val: String) {
+    fn complete_edit(&mut self, id: TodoID, val: String) {
         let filter = self.filter.clone();
         let mut entries = self
             .entries
             .iter_mut()
             .filter(|e| filter.fit(e))
             .collect::<Vec<_>>();
-        let entry = entries.get_mut(idx).unwrap();
+        let entry = entries.get_mut(id).unwrap();
         entry.data.description = val;
         entry.editing = !entry.editing;
     }
 
-    fn remove(&mut self, idx: usize) {
-        let idx = {
+    fn remove(&mut self, id: TodoID) {
+        let id = {
             let filter = self.filter.clone();
             let entries = self
                 .entries
@@ -394,9 +394,9 @@ impl Model {
                 .enumerate()
                 .filter(|&(_, e)| filter.fit(e))
                 .collect::<Vec<_>>();
-            let &(idx, _) = entries.get(idx).unwrap();
-            idx
+            let &(id, _) = entries.get(id).unwrap();
+            id
         };
-        self.entries.remove(idx);
+        self.entries.remove(id);
     }
 }

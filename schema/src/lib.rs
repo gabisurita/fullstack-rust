@@ -1,15 +1,10 @@
 #[macro_use]
 extern crate serde_derive;
 
-
-#[derive(Serialize, Deserialize)]
-pub struct NewTodo {
-    pub description: String,
-    pub completed: bool,
-}
+pub type TodoID = usize;
 
 #[derive(Serialize, Deserialize)]
 pub struct Todo {
     pub description: String,
-    pub completed: bool,
+    pub completed:   bool,
 }
