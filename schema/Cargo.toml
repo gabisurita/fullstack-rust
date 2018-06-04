@@ -1,0 +1,8 @@
+[package]
+name = "schema"
+version = "0.1.0"
+authors = ["Gabriela Surita <gabsurita@gmail.com>"]
+
+[dependencies]
+serde = "*"
+serde_derive = "*"

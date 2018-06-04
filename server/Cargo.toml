@@ -1,0 +1,18 @@
+[package]
+name = "server"
+version = "0.1.0"
+authors = ["Gabriela Surita <gabsurita@gmail.com>"]
+
+[dependencies]
+r2d2 = "*"
+r2d2_redis = "*"
+redis = "*"
+rocket = "*"
+rocket_contrib = "*"
+rocket_codegen = "*"
+serde = "*"
+serde_json = "*"
+schema = { path = "../schema" }
+
+[patch.crates-io]
+redis = { git = 'https://github.com/mitsuhiko/redis-rs'}
