@@ -10,26 +10,33 @@ pub extern crate schema;
 pub extern crate serde;
 pub extern crate serde_json;
 
+pub mod repository;
 pub mod storage;
 
 use std::io;
 
-use redis::Commands;
-use redis::RedisResult;
+use redis::Connection;
 use rocket_contrib::Json;
 use schema::{Todo, TodoID};
 
+use repository::{QueueRepository, RepositoryError};
 use rocket::response::NamedFile;
 use rocket::Route;
 use storage::{init_pool, RedisConnectionWrapper};
 
-/// Serves the frontend App.
+impl QueueRepository<Todo> for Connection {
+    fn key(&self) -> &str {
+        "todos"
+    }
+}
+
+/// Serves the frontend App index.html.
 #[get("/")]
 pub fn index() -> io::Result<NamedFile> {
     NamedFile::open("static/index.html")
 }
 
-/// Serves the frontend App.
+/// Serves the frontend Wasm application and CSS styles.
 #[get("/<filename>")]
 pub fn statics(filename: String) -> io::Result<NamedFile> {
     NamedFile::open(format!("static/{}", filename).as_str())
@@ -37,15 +44,10 @@ pub fn statics(filename: String) -> io::Result<NamedFile> {
 
 /// List Todos.
 #[get("/")]
-pub fn list_todos(connection: RedisConnectionWrapper) -> Json<Vec<Todo>> {
-    let result: RedisResult<Vec<String>> = connection.lrange("todos", 0, -1);
-    let deserialized = result
-        .unwrap()
-        .iter()
-        .map(|row| serde_json::from_str(row.as_str()).unwrap())
-        .collect();
-
-    Json(deserialized)
+pub fn list_todos(
+    connection: RedisConnectionWrapper,
+) -> Result<Json<Vec<Todo>>, RepositoryError> {
+    Ok(Json(connection.all()?))
 }
 
 /// Creates a new Todo.
@@ -53,13 +55,9 @@ pub fn list_todos(connection: RedisConnectionWrapper) -> Json<Vec<Todo>> {
 pub fn create_todo(
     connection: RedisConnectionWrapper,
     new_todo: Json<Todo>,
-) -> Json<Todo> {
-    let index: RedisResult<i32> =
-        connection.rpush("todos", serde_json::to_string(&new_todo.0).unwrap());
-
-    // FIXME: Handle Error
-    index.unwrap();
-    Json(new_todo.0)
+) -> Result<Json<Todo>, RepositoryError> {
+    connection.push(&new_todo.0)?;
+    Ok(Json(new_todo.0))
 }
 
 /// Updates the Todo on the given position.
@@ -68,16 +66,9 @@ pub fn update_todo(
     connection: RedisConnectionWrapper,
     index: TodoID,
     todo: Json<Todo>,
-) -> Json<Todo> {
-    let result: RedisResult<String> = connection.lset(
-        "todos",
-        index as isize,
-        serde_json::to_string(&todo.0).unwrap(),
-    );
-
-    // FIXME: Handle Error
-    result.unwrap();
-    Json(todo.0)
+) -> Result<Json<Todo>, RepositoryError> {
+    connection.replace(index as isize, &todo.0)?;
+    Ok(Json(todo.0))
 }
 
 /// Deletes the Todo on the given position.
@@ -85,16 +76,9 @@ pub fn update_todo(
 pub fn delete_todo(
     connection: RedisConnectionWrapper,
     index: TodoID,
-) -> Json<Todo> {
-    let value: RedisResult<String> = connection.lindex("todos", index as isize);
-
-    let data = value.unwrap();
-
-    let result: RedisResult<i32> = connection.lrem("todos", 1, &data);
-
-    // FIXME: Handle Error
-    result.unwrap();
-    Json(serde_json::from_str(&data).unwrap())
+) -> Result<Json<Todo>, RepositoryError> {
+    let data = connection.delete(index as isize)?;
+    Ok(Json(data))
 }
 
 /// Generate routes for the Todo resource.

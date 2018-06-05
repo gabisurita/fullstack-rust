@@ -20,7 +20,7 @@ pub fn init_pool() -> RedisPool {
 /// Redis connection wrapper.
 pub type RedisConnection = PooledConnection<RedisConnectionManager>;
 
-pub struct RedisConnectionWrapper(RedisConnection);
+pub struct RedisConnectionWrapper(pub RedisConnection);
 
 /// Allow access to the inner connection type using Deref.
 impl Deref for RedisConnectionWrapper {
