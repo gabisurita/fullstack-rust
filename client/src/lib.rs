@@ -106,14 +106,13 @@ impl Context {
 }
 
 pub struct Model {
-    entries:    Vec<Entry>,
-    filter:     Filter,
-    value:      String,
-    edit_value: String,
-    fetch:      Option<FetchTask>,
+    entries:          Vec<Entry>,
+    filter:           Filter,
+    new_description:  String,
+    edit_description: String,
+    fetch:            Option<FetchTask>,
 }
 
-#[derive(Serialize, Deserialize)]
 struct Entry {
     data:    Todo,
     editing: bool,
@@ -142,11 +141,11 @@ impl Component<Context> for Model {
         });
 
         Model {
-            entries:    vec![],
-            filter:     Filter::All,
-            value:      "".into(),
-            edit_value: "".into(),
-            fetch:      Some(env.todos.retrieve(callback)),
+            entries:          vec![],
+            filter:           Filter::All,
+            new_description:  "".into(),
+            edit_description: "".into(),
+            fetch:            Some(env.todos.retrieve(callback)),
         }
     }
 
@@ -168,28 +167,28 @@ impl Component<Context> for Model {
             Msg::Add => {
                 let entry = Entry {
                     data:    Todo {
-                        description: self.value.clone(),
+                        description: self.new_description.clone(),
                         completed:   false,
                     },
                     editing: false,
                 };
                 env.todos.create(&entry.data);
                 self.entries.push(entry);
-                self.value = "".to_string();
+                self.new_description = "".to_string();
             }
             Msg::Edit(id) => {
-                let edit_value = self.edit_value.clone();
-                self.complete_edit(id, edit_value);
+                let edit_description = self.edit_description.clone();
+                self.complete_edit(id, edit_description);
                 env.todos.update(id, &self.entries[id].data);
-                self.edit_value = "".to_string();
+                self.edit_description = "".to_string();
             }
             Msg::Update(val) => {
                 println!("Input: {}", val);
-                self.value = val;
+                self.new_description = val;
             }
             Msg::UpdateEdit(val) => {
                 println!("Input: {}", val);
-                self.edit_value = val;
+                self.edit_description = val;
             }
             Msg::Remove(id) => {
                 self.remove(id);
@@ -199,7 +198,8 @@ impl Component<Context> for Model {
                 self.filter = filter;
             }
             Msg::ToggleEdit(id) => {
-                self.edit_value = self.entries[id].data.description.clone();
+                self.edit_description =
+                    self.entries[id].data.description.clone();
                 self.toggle_edit(id);
             }
             Msg::Toggle(id) => {
@@ -273,7 +273,7 @@ impl Model {
         html! {
             <input class="new-todo",
                    placeholder="What needs to be done?",
-                   value=&self.value,
+                   value=&self.new_description,
                    oninput=|e| Msg::Update(e.value),
                    onkeypress=|e| {
                        if e.key() == "Enter" { Msg::Add } else { Msg::Nope }
@@ -307,7 +307,7 @@ fn view_entry_edit_input(
         html! {
             <input class="edit",
                    type="text",
-                   value=&entry.data.description,
+                   new_description=&entry.data.description,
                    oninput=|e| Msg::UpdateEdit(e.value),
                    onblur=|_| Msg::Edit(id),
                    onkeypress=|e| {
