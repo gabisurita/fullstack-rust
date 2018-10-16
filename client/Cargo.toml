@@ -11,10 +11,6 @@ strum_macros = "0.9"
 serde = "1"
 serde_derive = "1"
 serde_json = "1"
-rand = { version = "0.5.0", features = ["stdweb"] }
+yew = "0.4"
+rand = { version = "0.5.5", features = ["stdweb"] }
 uuid = { version = "0.6.5", features = ["v4", "serde"] }
-yew = { git = "https://github.com/DenisKolodin/yew" }
-
-
-[patch.crates-io]
-uuid = { git = 'https://github.com/gabisurita/uuid', branch='upgrade-rand-0.5'}
